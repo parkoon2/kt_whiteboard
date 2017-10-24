@@ -1,0 +1,30 @@
+<html>
+    <head>
+            
+    </head>
+    <body>
+        <h1>화이트보드입니다.</h1>
+        <canvas id="whiteboard"></canvas>
+      
+        <script src="socket.io/socket.io.js"></script>
+        <script src="./js/whiteboard.js"></script>
+        
+            
+        <script>
+            const socket = io.connect();
+            const canvas = document.querySelector('#whiteboard');
+            const width   = window.innerWidth;
+            const height  = window.innerHeight;
+
+
+            canvas.width = width;
+            canvas.height = height;
+                
+            let b = new KT.Whiteboard(canvas, socket);
+            // b.setOption({
+            //     width : null,
+            //     height : null
+            // })
+        </script>
+    </body>
+</html>
