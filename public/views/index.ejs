@@ -3,8 +3,20 @@
             
     </head>
     <body>
-        <h1>화이트보드입니다.</h1>
+    
         <canvas id="whiteboard"></canvas>
+        <div style="border:1px solid">
+            <button id="line">Draw Line</button>
+            <button id="linesize1" data-thickness="1">line 1 </button>
+            <button id="linesize2" data-thickness="2">line 2 </button>
+            <button id="linesize3" data-thickness="3">line 3 </button>
+        </div>
+        <div style="border:1px solid">
+                <button id="erase">Draw erase</button>
+                <button id="erasesize1">erase 1 </button>
+                <button id="erasesize2">erase 2 </button>
+                <button id="eraseAll">erase All </button>
+        </div>
       
         <script src="socket.io/socket.io.js"></script>
         <script src="./js/whiteboard.js"></script>
@@ -13,18 +25,47 @@
         <script>
             const socket = io.connect();
             const canvas = document.querySelector('#whiteboard');
+           
+            /* Line Button Num */
+            const LINE_BTN_NUM  = 3            
+            
+            /* Erase Button Num */
+            const ERASE_BTN_NUM  = 3
+
+
             const width   = window.innerWidth;
             const height  = window.innerHeight;
 
 
-            canvas.width = width;
-            canvas.height = height;
+            canvas.width = width / 2;
+            canvas.height = height / 2;
                 
             let b = new KT.Whiteboard(canvas, socket);
-            // b.setOption({
-            //     width : null,
-            //     height : null
-            // })
+            b.setOption({
+                thickness: 1, // if null, default 1
+                interval: 3 // if null, default 2
+            })
+
+            /* erase */
+            document.querySelector('#erase').addEventListener('click', function () {
+                console.log('You select erase')
+                b.setToolbarType('erase');
+            })          
+            
+            
+            /* line */
+            document.querySelector('#line').addEventListener('click', function () {
+                console.log('You select line')
+                b.setToolbarType('draw');
+            })
+
+            for (let i = 1 ; i <= LINE_BTN_NUM ; i ++) {
+                let sizeBtn = document.querySelector(`#linesize${i}`);
+                sizeBtn.addEventListener('click', function () {
+                    b.setLineWidth(Number(this.getAttribute('data-thickness')))
+                })
+            }
+
         </script>
     </body>
 </html>
