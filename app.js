@@ -28,6 +28,18 @@ io.on('connection', function (socket) {
             
             case 'DrawEnd':
             io.emit('gigaginie', msg);
+            break;            
+            
+            case 'EraseStart':
+            io.emit('gigaginie', msg);
+            break;
+
+            case 'EraseMove':
+            io.emit('gigaginie', msg);
+            break;
+            
+            case 'EraseEnd':
+            io.emit('gigaginie', msg);
             break;
         }
     })

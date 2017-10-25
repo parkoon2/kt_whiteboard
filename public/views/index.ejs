@@ -40,8 +40,8 @@
             canvas.width = width / 2;
             canvas.height = height / 2;
                 
-            let b = new KT.Whiteboard(canvas, socket);
-            b.setOption({
+            let whiteboard = new KT.Whiteboard(canvas, socket);
+            whiteboard.setOption({
                 thickness: 1, // if null, default 1
                 interval: 3 // if null, default 2
             })
@@ -49,22 +49,24 @@
             /* erase */
             document.querySelector('#erase').addEventListener('click', function () {
                 console.log('You select erase')
-                b.setToolbarType('erase');
+                whiteboard.setToolbarType('erase');
             })          
             
             
             /* line */
             document.querySelector('#line').addEventListener('click', function () {
                 console.log('You select line')
-                b.setToolbarType('draw');
+                whiteboard.setToolbarType('draw');
             })
 
             for (let i = 1 ; i <= LINE_BTN_NUM ; i ++) {
                 let sizeBtn = document.querySelector(`#linesize${i}`);
                 sizeBtn.addEventListener('click', function () {
-                    b.setLineWidth(Number(this.getAttribute('data-thickness')))
+                    whiteboard.setLineWidth(Number(this.getAttribute('data-thickness')))
                 })
             }
+
+            whiteboard.a.test = 1
 
         </script>
     </body>

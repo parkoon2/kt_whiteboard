@@ -1,8 +1,11 @@
 var KT = KT || {};
 
 KT.Whiteboard = (function (window) {
+    'use strict';
+
     const width  = window.innerWidth,
           height = window.innerHeight;
+
 
     let _canvas     = null, 
         _ctx        = null,
@@ -29,7 +32,8 @@ KT.Whiteboard = (function (window) {
             y: 0
         },
         thickness: 1,
-        toolbarType: null
+        toolbarType: null,
+        color: null,
 
     };
 
@@ -44,6 +48,8 @@ KT.Whiteboard = (function (window) {
         _socket = socket;
 
         _canvas.onmousedown = function(e) { 
+
+            console.log(_test)
             /* 클릭 했을 때 모든 세팅 정보를 넘긴다 예를들어 지우개인지 텍스트인지 드로잉인지, 칼라, 두깨, 등등*/
             mouse.click         = true;
             message.pos.x       = e.clientX / width;
@@ -51,8 +57,7 @@ KT.Whiteboard = (function (window) {
             message.thickness   = toolbar.thickness;
             message.toolbarType = toolbar.type;
             
-            message.eventOp     = setEventOp('start');
-            console.log('보내기전', JSON.stringify(message))
+            message.eventOp     = getEventOp('start');
             _socket.emit('gigaginie', JSON.stringify(message));
         };
 
@@ -61,7 +66,7 @@ KT.Whiteboard = (function (window) {
             mouse.click     = false;
             message.pos.x   = e.clientX / width;
             message.pos.y   = e.clientY / height;
-            message.eventOp = setEventOp('end');
+            message.eventOp = getEventOp('end');
             
             _socket.emit('gigaginie', JSON.stringify(message));
             
@@ -69,7 +74,7 @@ KT.Whiteboard = (function (window) {
      
         _canvas.onmousemove = function(e) {
 
-            message.eventOp = setEventOp('move');
+            message.eventOp = getEventOp('move');
             message.pos.x   = e.clientX / width;
             message.pos.y   = e.clientY / height;
 
@@ -83,12 +88,23 @@ KT.Whiteboard = (function (window) {
 
         socket.on('gigaginie', function (msg) {
             const _msg = JSON.parse(msg)
-            console.log('1')
             // 여기서 라인, 지우개, 다 세팅해도 문제 없을까? 함수로 뺀다면 빼겟지?
-            _ctx.lineWidth      = _msg.thickness;
-            _ctx.strokeStyle    = '#ff0000';
-            _ctx.fillColor      = '#ff0000' // 지우개는 항상 하얀색이니까 계속 세팅 할 필요가 없겠지>
-    
+            
+            if (_msg.toolbarType === 'draw') {
+                _ctx.lineWidth                = _msg.thickness;
+                _ctx.globalCompositeOperation = 'source-over';
+                _ctx.strokeStyle              = '#ff0000';
+                _ctx.fillStyle                = '#000000';
+            } else if (_msg.toolbarType === 'erase') {
+                _ctx.lineWidth                = 1;
+                _ctx.globalCompositeOperation = 'destination-out';
+                _ctx.strokeStyle              = '#000000';
+                _ctx.fillStyle                = '#fffff' // 지우개는 항상 하얀색이니까 계속 세팅 할 필요가 없겠지>
+            }
+            
+
+
+
             switch (_msg.eventOp) {
                 case 'DrawStart':
                 _ctx.beginPath();
@@ -110,8 +126,8 @@ KT.Whiteboard = (function (window) {
                 break;
 
                 case 'EraseMove':
-                _ctx.arc(msg.pos.x * width, _msg.pos.y * height, toolbar.erase.radius, 0, Math.PI * 2, false);
-                _ctx.stroke();
+                _ctx.arc(_msg.pos.x * width, _msg.pos.y * height, toolbar.erase.radius, 0, Math.PI * 2, false);
+                _ctx.fill();
                 break;
 
                 case 'EraseEnd':
@@ -121,7 +137,7 @@ KT.Whiteboard = (function (window) {
         })
     }
 
-    const setEventOp = function (point) {
+    const getEventOp = function (point) {
         let op;
         switch (point) {
             case 'start':
@@ -152,20 +168,27 @@ KT.Whiteboard = (function (window) {
     }
 
     Whiteboard.prototype = {
-        // 옵션이 필요할까? 생각 해보자
-        setOption: function (option) {
-            toolbar.thickness  = option.thickness || 1
-            _interval          = option.interval || 2;
-        },
-
-        setLineWidth: function (thickness) {
-            toolbar.thickness = thickness;
-        },
-
-        setToolbarType: function (type) {
-            toolbar.type = type;
-        }
+        pen: {},
+        text: {},
+        eraser: {}
     }
+
+    Whiteboard.prototype.setOption = function (option) {
+        toolbar.thickness  = option.thickness || 1
+        _interval          = option.interval || 2;
+    }
+
+    Whiteboard.prototype.setLineWidth = function (thickness) {
+        toolbar.thickness = thickness;
+    }
+
+    Whiteboard.prototype.setToolbarType = function (type) {
+        toolbar.type = type;
+    }
+
+    Object.defineProperty(Whiteboard.prototype.pen, 'thickness', {
+        set: function(newVal) { _thickness = newVal; }
+    })
     
     return Whiteboard
 })(window);
