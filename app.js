@@ -17,6 +17,7 @@ app.get('/', function(req, res) {
 
 io.on('connection', function (socket) {
     socket.on('gigaginie', function (msg) {
+        console.log(JSON.parse(msg))
         switch (JSON.parse(msg).eventOp) {
             case 'DrawStart':
             io.emit('gigaginie', msg);
@@ -39,6 +40,10 @@ io.on('connection', function (socket) {
             break;
             
             case 'EraseEnd':
+            io.emit('gigaginie', msg);
+            break;
+
+            case 'EraseAll':
             io.emit('gigaginie', msg);
             break;
         }

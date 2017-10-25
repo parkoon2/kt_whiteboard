@@ -5,19 +5,38 @@
     <body>
     
         <canvas id="whiteboard"></canvas>
-        <div style="border:1px solid">
-            <button id="line">Draw Line</button>
-            <button id="linesize1" data-thickness="1">line 1 </button>
-            <button id="linesize2" data-thickness="2">line 2 </button>
-            <button id="linesize3" data-thickness="3">line 3 </button>
+        <div>
+            <button id="pen">Draw Line</button>
+            <button id="pen_small" data-thickness="1">Pen S </button>
+            <button id="pen_medium" data-thickness="2">Pen M </button>
+            <button id="pen_large" data-thickness="3">Pen L </button>
         </div>
-        <div style="border:1px solid">
-                <button id="erase">Draw erase</button>
-                <button id="erasesize1">erase 1 </button>
-                <button id="erasesize2">erase 2 </button>
-                <button id="eraseAll">erase All </button>
+        <br>        
+        <br>
+        <div >
+                <button id="color_blue">Set blue </button>
+                <button id="color_red">Set red </button>
+                <button id="color_orange">Set orange </button>
         </div>
-      
+        <br>
+        <br>
+        
+        <div >
+            <button id="eraser">Draw erase</button>
+            <button id="eraser_small">Erase S </button>
+            <button id="eraser_large">Erase L </button>
+            <button id="clear">Clear </button>
+        </div>
+
+        <div >
+            <button id="text">Text</button>
+            <button id="text_small">Text S </button>
+            <button id="text_medium">Text M </button>
+            <button id="test_large">Text L </button>
+        </div>
+        <br>
+        <br>
+        
         <script src="socket.io/socket.io.js"></script>
         <script src="./js/whiteboard.js"></script>
         
@@ -26,11 +45,22 @@
             const socket = io.connect();
             const canvas = document.querySelector('#whiteboard');
            
-            /* Line Button Num */
-            const LINE_BTN_NUM  = 3            
             
-            /* Erase Button Num */
-            const ERASE_BTN_NUM  = 3
+            const toolbar_button = ['pen', 'text', 'eraser'];
+            const eraser_size = {
+                small: 10,
+                large: 20
+            }
+            const pen_thickness = {
+                small: 1,
+                medium: 5,
+                large: 10
+            }     
+            const color = {
+                red: '#ff0000',
+                blue: '#0402f1',
+                orange: '#ffa400',
+            }          
 
 
             const width   = window.innerWidth;
@@ -39,34 +69,44 @@
 
             canvas.width = width / 2;
             canvas.height = height / 2;
-                
             let whiteboard = new KT.Whiteboard(canvas, socket);
-            whiteboard.setOption({
-                thickness: 1, // if null, default 1
-                interval: 3 // if null, default 2
+        
+
+            document.querySelector('#clear').addEventListener('click', function () {
+                whiteboard.clear();
             })
 
-            /* erase */
-            document.querySelector('#erase').addEventListener('click', function () {
-                console.log('You select erase')
-                whiteboard.setToolbarType('erase');
-            })          
-            
-            
-            /* line */
-            document.querySelector('#line').addEventListener('click', function () {
-                console.log('You select line')
-                whiteboard.setToolbarType('draw');
+            toolbar_button.map(function (val) {
+                document.querySelector(`#${val}`).addEventListener('click', function () {
+                    alert(`you choose a(an) ${val}`)
+                    whiteboard.toolbar.type = val;
+                });
             })
 
-            for (let i = 1 ; i <= LINE_BTN_NUM ; i ++) {
-                let sizeBtn = document.querySelector(`#linesize${i}`);
-                sizeBtn.addEventListener('click', function () {
-                    whiteboard.setLineWidth(Number(this.getAttribute('data-thickness')))
+            Object.keys(eraser_size).map(function (key) {
+                let val = eraser_size[key];
+                document.querySelector(`#eraser_${key}`).addEventListener('click', function () {
+                    whiteboard.eraser.size = val;
                 })
-            }
+            })
 
-            whiteboard.a.test = 1
+
+            Object.keys(pen_thickness).map(function (key) {
+                let val = pen_thickness[key];
+                document.querySelector(`#pen_${key}`).addEventListener('click', function () {
+                    whiteboard.pen.thickness = val;
+                })
+                
+            })
+
+            Object.keys(color).map(function (key) {
+                let val = color[key];
+                document.querySelector(`#color_${key}`).addEventListener('click', function () {
+                    whiteboard.color = val;
+                })
+            })
+
+            
 
         </script>
     </body>
