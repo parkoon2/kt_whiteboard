@@ -16,7 +16,7 @@ KT.Whiteboard = (function (window) {
     let toolbar = {
         type: 'pen',
 
-        color: null,
+        color: '#00000',
         
         pen: {
             thickness: 1
@@ -27,11 +27,13 @@ KT.Whiteboard = (function (window) {
         },
         text: {
             isExist: false,
-            contents: null
+            contents: null,
+            size: 10,
+            color: '#fffff'
+
         }
 
     }    
-
     let message = {
         signalOp: null,
         pos: {
@@ -56,52 +58,39 @@ KT.Whiteboard = (function (window) {
         _ctx    = canvas.getContext('2d');
         _socket = socket;
 
-        _canvas.onmousedown = function(e) { 
+        _canvas.onmousedown = function(mouseEvt) { 
             if (toolbar.type === 'text') return;
-            /* 클릭 했을 때 모든 세팅 정보를 넘긴다 예를들어 지우개인지 텍스트인지 드로잉인지, 칼라, 두깨, 등등*/
-            mouse.click         = true;
-            message.pos.x       = e.clientX / width;
-            message.pos.y       = e.clientY / height;
-            message.thickness   = toolbar.pen.thickness;
-            message.toolbarType = toolbar.type;
-            message.color       = toolbar.color;
-            message.eraserSize  = toolbar.eraser.size;
-            console.log(message.thickness)
-            message.signalOp     = getsignalOp('start');
-            _socket.emit('gigaginie', JSON.stringify(message));
+            mouse.click = true;        
+            _socket.emit('gigaginie', JSON.stringify(getMessage(mouseEvt, 'start')));
             
         };
 
-        _canvas.onmouseup   = function(e) { 
+        _canvas.onmouseup   = function(mouseEvt) { 
             
             mouse.click     = false;
-            message.pos.x   = e.clientX / width;
-            message.pos.y   = e.clientY / height;
-            // 여기서 테스트 기능을 넣자            
-            if (toolbar.type === 'text') {
+                    
+            if (toolbar.type === 'text') { /* 텍스 입력 기능 */
+
                 if (toolbar.text.isExist) return;
-                addTextarea(e.clientX, e.clientY);
+                addTextarea(mouseEvt);
+
             } else {
-                message.signalOp = getsignalOp('end');
-                _socket.emit('gigaginie', JSON.stringify(message));
+
+                _socket.emit('gigaginie', JSON.stringify(getMessage(mouseEvt, 'end')));
 
             }
 
             
         }
      
-        _canvas.onmousemove = function(e) {
+        _canvas.onmousemove = function(mouseEvt) {
             
             if (toolbar.type === 'text') return;
-            
-            message.signalOp = getsignalOp('move');
-            message.pos.x   = e.clientX / width;
-            message.pos.y   = e.clientY / height;
 
             if (mouse.click) {
                 /* 텀을 두고 소켓을 보낸다 (지니 과부화 방지) */
                 if (_count ++ % _interval === 0) {
-                    _socket.emit('gigaginie', JSON.stringify(message));
+                    _socket.emit('gigaginie', JSON.stringify(getMessage(mouseEvt, 'move')));
                 }
             }
 
@@ -111,91 +100,122 @@ KT.Whiteboard = (function (window) {
         socket.on('gigaginie', function (msg) {
             const _msg = JSON.parse(msg)
             // 여기서 라인, 지우개, 다 세팅해도 문제 없을까? 함수로 뺀다면 빼겟지?
-            console.log('지니 당신이 받을 메세지야', _msg)
-            if (_msg.toolbarType === 'pen') {
-                _ctx.lineWidth                = _msg.thickness;
-                _ctx.globalCompositeOperation = 'source-over';
-                _ctx.strokeStyle              = _msg.color;
-                _ctx.fillStyle                = '#000000';
-            } else if (_msg.toolbarType === 'eraser') {
-                //_ctx.lineWidth                = 1;  // default 값으로 세팅해 줄 필요가 없나?
-                _ctx.globalCompositeOperation = 'destination-out';
-                //_ctx.strokeStyle              = '#000000';
-                _ctx.fillStyle                = '#fffff' // 지우개는 항상 하얀색이니까 계속 세팅 할 필요가 없겠지>
-            }
+   
+            let thickness     = _msg.lineSize || 1,
+                color         = _msg.textColor || _msg.lineColor || '#fffff',
+                eraser_size   = _msg.eraserSize || 10,
+                axisX         = _msg.axisX || 0,
+                axisY         = _msg.axisY || 0,
+                text_contents = _msg.contents || ' ' 
             
             switch (_msg.signalOp) {
-                case 'DrawStart':
-                _ctx.beginPath();
-                _ctx.moveTo(_msg.pos.x * width, _msg.pos.y * height);
-                break;
-
-                case 'DrawMove':
-                _ctx.lineTo(_msg.pos.x * width, _msg.pos.y * height);
-                _ctx.stroke();
-                break;
-
-                case 'DrawEnd':
-                _ctx.closePath();
-                break;                
+                case 'DrawStart':   _ctx.lineWidth                = thickness;
+                                    _ctx.strokeStyle              = color;
+                                    _ctx.globalCompositeOperation = 'source-over';
+                                    _ctx.beginPath();
+                                    _ctx.moveTo(axisX * width, axisY * height);
+                                    break;
                 
-                case 'EraseStart':
-                _ctx.beginPath();
-                _ctx.moveTo(_msg.pos.x * width, _msg.pos.y * height);
-                break;
+                case 'DrawMove':    _ctx.lineTo(axisX * width, axisY * height);
+                                    _ctx.stroke();
+                                    break;
 
-                case 'EraseMove':
-                _ctx.arc(_msg.pos.x * width, _msg.pos.y * height, _msg.eraserSize, 0, Math.PI * 2, false);
-                _ctx.fill();
-                break;
+                
+                case 'DrawEnd':     _ctx.closePath();
+                                    break;                
+                
+                case 'EraseStart':  _ctx.globalCompositeOperation = 'destination-out';
+                                    _ctx.fillStyle                = '#fffff' // 지우개는 항상 하얀색 !
+                                    _ctx.beginPath();
+                                    _ctx.moveTo(axisX * width, axisY * height);
+                                    break;
 
-                case 'EraseEnd':
-                _ctx.closePath();
-                break;
+                case 'EraseMove':   _ctx.arc(axisX * width, axisY * height, eraser_size, 0, Math.PI * 2, false);
+                                    _ctx.fill();
+                                    break;
 
-                case 'EraseAll':
-                _ctx.clearRect(0, 0, _canvas.width, _canvas.height);
-                break;
+                case 'EraseEnd':    _ctx.closePath();
+                                    break;
 
-                case 'WriteText':
-                console.log('ff')
-                _ctx.textBaseline             = 'top';
-                _ctx.textAlign                = 'left';
-                _ctx.font                     = '14px sans-serif';
-                _ctx.globalCompositeOperation = 'source-over' // 지우개 갔다 오면 지우개 속성으로 먹혀있다.......      
-                _ctx.fillText(_msg.textContents, _msg.pos.x * width, _msg.pos.y * height);
-                break;
+                case 'EraseAll':    _ctx.clearRect(0, 0, _canvas.width, _canvas.height);
+                                    break;
+
+                case 'WriteText':   _ctx.textBaseline             = 'top';
+                                    _ctx.textAlign                = 'left';
+                                    _ctx.font                     = '14px sans-serif';
+                                    _ctx.globalCompositeOperation = 'source-over' // 지우개 갔다 오면 지우개 속성으로 먹혀있다.......      
+                                    _ctx.fillText(_msg.contents, axisX * width, axisY * height);
+                                    break;
             }
-
-            console.log('최종 컨텍스트를 확인하시오!', _ctx)
         })
     }
 
-    const addTextarea = function (x, y) {
+    const getMessage = function (mouseEvt, point) {
+        
+        let msg = {}
+
+        msg.signalOp    = getSignalOp(point); // 이 부분 분기처리?                 
+        msg.reqNo       = '_test_num_7'; 
+        msg.axisX       = mouseEvt.clientX / window.innerWidth; 
+        msg.axisY       = mouseEvt.clientY / window.innerHeight; 
+
+        if (point === 'start' || point === 'text') {
+
+            msg.boardWidth  = _canvas.width; 
+            msg.boardHeight = _canvas.height;
+
+            if (toolbar.type === 'pen') {
+
+                msg.lineSize    =  toolbar.pen.thickness ;
+                msg.lineColor   =  toolbar.color ;
+
+            } else if (toolbar.type === 'eraser') {
+
+                // msg.eraserSize  =  toolbar.eraser.size;  지우는 건 중간에 하는데 ... 처음에 보내 놓고 셋팅한다? 지니쪽에 데이터만 보내는거라면 상관없는데....   
+
+            } else if (toolbar.type === 'text') {
+
+                msg.textSize = toolbar.text.size;
+                msg.textColor = toolbar.text.color;
+                msg.contents = toolbar.text.contents;
+
+            }
+        }
+
+
+
+        return msg
+    }
+
+    const addTextarea = function (mouseEvt) {
         
         let input = document.createElement('input');
-        
+
         input.type           = 'text';
         input.style.position = 'fixed';
-        input.style.left     = x + 'px'
-        input.style.top      = y + 'px';
+        input.style.left     = mouseEvt.clientX + 'px'
+        input.style.top      = mouseEvt.clientY + 'px';
+       
+        toolbar.text.isExist = true; /* 더 이상 텍스트 창을 생성할 수 없게 */
         
         document.body.appendChild(input);
-        toolbar.text.isExist = true;
+        
         input.focus();
 
-        input.addEventListener('keydown', function (e) {
+        input.addEventListener('keydown', function (keyEvt) {
             let enter = 13;
-            if (e.keyCode === enter) {
+            if (keyEvt.keyCode === enter) {
                 // 이 부분이 텍스트를 소켓으로 보내야 하는 부분이다!
                 toolbar.text.contents = this.value;
+                toolbar.text.isExist  = false;
                 document.body.removeChild(this);
-                toolbar.text.isExist = false;
-                // 소켓 이벤트 필요!
-                message.signalOp      = getsignalOp('text');
-                message.textContents = toolbar.text.contents;
+                
+                message.signalOp      = getSignalOp('text');
+                message.textContents  = toolbar.text.contents;
 
-                _socket.emit('gigaginie', JSON.stringify(message));
+                console.log(getMessage(mouseEvt, 'text'))
+
+                _socket.emit('gigaginie', JSON.stringify(getMessage(mouseEvt, 'text')));
                 
                 //drawText(this.value, parseInt(this.style.left, 10), parseInt(this.style.top, 10));
             }
@@ -211,7 +231,7 @@ KT.Whiteboard = (function (window) {
         _ctx.fillText(txt, x, y);
     }
 
-    const getsignalOp = function (point) {
+    const getSignalOp = function (point) {
         let op;
         switch (point) {
             case 'start':
@@ -263,7 +283,7 @@ KT.Whiteboard = (function (window) {
 
     
     Whiteboard.prototype.clear = function () {
-        message.signalOp = getsignalOp('clear');
+        message.signalOp = getSignalOp('clear');
         _socket.emit('gigaginie', JSON.stringify(message)); // 여기는 밑에서 구현
         
          
