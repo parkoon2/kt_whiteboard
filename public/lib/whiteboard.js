@@ -11,7 +11,7 @@ KT.Whiteboard = (function (window) {
         _ctx        = null,
         _socket     = null,
         _interval   = 3,
-        _count      = 0;
+        _count      = 0; // 변수명 수정
 
     let toolbar = {
         type: 'pen',
@@ -24,11 +24,16 @@ KT.Whiteboard = (function (window) {
         eraser: {
             color: '#fffff',
             size: 5 
+        },
+        text: {
+            isExist: false,
+            contents: null
         }
+
     }    
 
     let message = {
-        eventOp: null,
+        signalOp: null,
         pos: {
             x: 0,
             y: 0
@@ -36,7 +41,8 @@ KT.Whiteboard = (function (window) {
         thickness: 1,
         toolbarType: null,
         color: null,
-        eraserSize: 5
+        eraserSize: 5,
+        textContents: null
 
     };
 
@@ -51,42 +57,44 @@ KT.Whiteboard = (function (window) {
         _socket = socket;
 
         _canvas.onmousedown = function(e) { 
-            if (toolbar.type === 'text') {
-                if (false) throw '';
-                addInput(e.clientX / width, e.clientY / height);
-
-
-            } else {
-                /* 클릭 했을 때 모든 세팅 정보를 넘긴다 예를들어 지우개인지 텍스트인지 드로잉인지, 칼라, 두깨, 등등*/
-                mouse.click         = true;
-                message.pos.x       = e.clientX / width;
-                message.pos.y       = e.clientY / height;
-                message.thickness   = toolbar.pen.thickness;
-                message.toolbarType = toolbar.type;
-                message.color       = toolbar.color;
-                message.eraserSize  = toolbar.eraser.size;
-
-                message.eventOp     = getEventOp('start');
-                _socket.emit('gigaginie', JSON.stringify(message));
-            }
+            if (toolbar.type === 'text') return;
+            /* 클릭 했을 때 모든 세팅 정보를 넘긴다 예를들어 지우개인지 텍스트인지 드로잉인지, 칼라, 두깨, 등등*/
+            mouse.click         = true;
+            message.pos.x       = e.clientX / width;
+            message.pos.y       = e.clientY / height;
+            message.thickness   = toolbar.pen.thickness;
+            message.toolbarType = toolbar.type;
+            message.color       = toolbar.color;
+            message.eraserSize  = toolbar.eraser.size;
+            console.log(message.thickness)
+            message.signalOp     = getsignalOp('start');
+            _socket.emit('gigaginie', JSON.stringify(message));
             
         };
 
         _canvas.onmouseup   = function(e) { 
-            // 여기서 테스트 기능을 넣자
-
+            
             mouse.click     = false;
             message.pos.x   = e.clientX / width;
             message.pos.y   = e.clientY / height;
-            message.eventOp = getEventOp('end');
-            
-            _socket.emit('gigaginie', JSON.stringify(message));
+            // 여기서 테스트 기능을 넣자            
+            if (toolbar.type === 'text') {
+                if (toolbar.text.isExist) return;
+                addTextarea(e.clientX, e.clientY);
+            } else {
+                message.signalOp = getsignalOp('end');
+                _socket.emit('gigaginie', JSON.stringify(message));
+
+            }
+
             
         }
      
         _canvas.onmousemove = function(e) {
-
-            message.eventOp = getEventOp('move');
+            
+            if (toolbar.type === 'text') return;
+            
+            message.signalOp = getsignalOp('move');
             message.pos.x   = e.clientX / width;
             message.pos.y   = e.clientY / height;
 
@@ -96,12 +104,14 @@ KT.Whiteboard = (function (window) {
                     _socket.emit('gigaginie', JSON.stringify(message));
                 }
             }
+
+            
         };
 
         socket.on('gigaginie', function (msg) {
             const _msg = JSON.parse(msg)
             // 여기서 라인, 지우개, 다 세팅해도 문제 없을까? 함수로 뺀다면 빼겟지?
-            console.log(_msg)
+            console.log('지니 당신이 받을 메세지야', _msg)
             if (_msg.toolbarType === 'pen') {
                 _ctx.lineWidth                = _msg.thickness;
                 _ctx.globalCompositeOperation = 'source-over';
@@ -114,9 +124,7 @@ KT.Whiteboard = (function (window) {
                 _ctx.fillStyle                = '#fffff' // 지우개는 항상 하얀색이니까 계속 세팅 할 필요가 없겠지>
             }
             
-
-
-            switch (_msg.eventOp) {
+            switch (_msg.signalOp) {
                 case 'DrawStart':
                 _ctx.beginPath();
                 _ctx.moveTo(_msg.pos.x * width, _msg.pos.y * height);
@@ -148,26 +156,48 @@ KT.Whiteboard = (function (window) {
                 case 'EraseAll':
                 _ctx.clearRect(0, 0, _canvas.width, _canvas.height);
                 break;
+
+                case 'WriteText':
+                console.log('ff')
+                _ctx.textBaseline             = 'top';
+                _ctx.textAlign                = 'left';
+                _ctx.font                     = '14px sans-serif';
+                _ctx.globalCompositeOperation = 'source-over' // 지우개 갔다 오면 지우개 속성으로 먹혀있다.......      
+                _ctx.fillText(_msg.textContents, _msg.pos.x * width, _msg.pos.y * height);
+                break;
             }
+
+            console.log('최종 컨텍스트를 확인하시오!', _ctx)
         })
     }
 
-    const addInput = function (x, y) {
+    const addTextarea = function (x, y) {
+        
         let input = document.createElement('input');
-        input.type = 'text';
+        
+        input.type           = 'text';
         input.style.position = 'fixed';
-        input.style.left = (x * width - 4) + 'px'
-        input.style.top = (y * height - 4) + 'px';
+        input.style.left     = x + 'px'
+        input.style.top      = y + 'px';
         
         document.body.appendChild(input);
-
+        toolbar.text.isExist = true;
         input.focus();
 
         input.addEventListener('keydown', function (e) {
-            if (e.keyCode === 13) {
-                drawText(this.value, parseInt(this.style.left, 10), parseInt(this.style.top, 10));
+            let enter = 13;
+            if (e.keyCode === enter) {
+                // 이 부분이 텍스트를 소켓으로 보내야 하는 부분이다!
+                toolbar.text.contents = this.value;
                 document.body.removeChild(this);
-                //hasInput = false;
+                toolbar.text.isExist = false;
+                // 소켓 이벤트 필요!
+                message.signalOp      = getsignalOp('text');
+                message.textContents = toolbar.text.contents;
+
+                _socket.emit('gigaginie', JSON.stringify(message));
+                
+                //drawText(this.value, parseInt(this.style.left, 10), parseInt(this.style.top, 10));
             }
         })
     }
@@ -181,7 +211,7 @@ KT.Whiteboard = (function (window) {
         _ctx.fillText(txt, x, y);
     }
 
-    const getEventOp = function (point) {
+    const getsignalOp = function (point) {
         let op;
         switch (point) {
             case 'start':
@@ -211,6 +241,10 @@ KT.Whiteboard = (function (window) {
             case 'clear':
             op = "EraseAll";
             break;
+
+            case 'text':
+            op = "WriteText";
+            break;
         }
 
         return op;
@@ -229,7 +263,7 @@ KT.Whiteboard = (function (window) {
 
     
     Whiteboard.prototype.clear = function () {
-        message.eventOp = getEventOp('clear');
+        message.signalOp = getsignalOp('clear');
         _socket.emit('gigaginie', JSON.stringify(message)); // 여기는 밑에서 구현
         
          

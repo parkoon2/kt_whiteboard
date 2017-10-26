@@ -12,13 +12,13 @@ app.set('views', './public/views');
 app.set('view engine', 'ejs');
 
 app.get('/', function(req, res) {
-    res.render('index');
+    res.render('whiteboard');
 })
 
 io.on('connection', function (socket) {
     socket.on('gigaginie', function (msg) {
         console.log(JSON.parse(msg))
-        switch (JSON.parse(msg).eventOp) {
+        switch (JSON.parse(msg).signalOp) {
             case 'DrawStart':
             io.emit('gigaginie', msg);
             break;
@@ -44,6 +44,10 @@ io.on('connection', function (socket) {
             break;
 
             case 'EraseAll':
+            io.emit('gigaginie', msg);
+            break;
+
+            case 'WriteText':
             io.emit('gigaginie', msg);
             break;
         }
