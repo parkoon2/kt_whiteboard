@@ -25,7 +25,7 @@ let Whiteboard = (function (window) {
 
     /**
      * 생성자를 통해 받은 캔버스와 소켓을 전역으로 사용하기 위해
-     * 별도 변수에 저장
+     * 별도로 변수에 저장
      */
     let _canvas = null, _ctx = null, _socket = null
     
@@ -41,40 +41,33 @@ let Whiteboard = (function (window) {
 
     /**
      * 화이트 보드 툴바를 정의한 객체
+     * 생성자 함수에서 값 초기화
      */
     let toolbar = {
-        type: 'pen',
-
-        color: '#00000',
-        
-        pen: {
-            thickness: 1
-        },
-        eraser: {
-            color : '#fffff',
-            size  : 5 
-        },
-        text: {
-            isExist : false,
-            contents: null,
-            size    : 10
-        }
+        type: null, 
+        color: null, 
+        pen: { thickness: null },
+        eraser: { color: null, size: null },
+        text: { isExist : false, contents: null, size: null }
     }    
 
-
-    let mouse = {
-        click: null,
+    /**
+     * 마우스 객체
+     */
+    let mouse = { 
+        click: null, 
+        pos: { x: 0, y: 0 }
     };
 
     function Whiteboard (canvas, socket, option) {
-        toolbar.type            = (typeof option.type !== 'undefinde') ? option.type : 'pen'
-        toolbar.color           = (typeof option.color !== 'undefinde') ? option.color : DEFAULT_COLOR
-        toolbar.pen.thickness   = (typeof option.thickness !== 'undefinde') ? option.thickness : DEFAULT_THICKNESS
-        toolbar.eraser.size     = (typeof option.eraser_size !== 'undefinde') ? option.eraser_size : DEFAULT_ERASER_SIZE,
-        toolbar.text.size        = (typeof option.text_size !== 'undefined') ? option.text_size : DEFAULT_TEXT_SIZE
+        toolbar.type = (typeof option.type !== 'undefinde') ? option.type : 'pen'
+        toolbar.color = (typeof option.color !== 'undefinde') ? option.color : DEFAULT_COLOR
+        toolbar.pen.thickness = (typeof option.thickness !== 'undefinde') ? option.thickness : DEFAULT_THICKNESS
+        toolbar.eraser.size = (typeof option.eraser_size !== 'undefinde') ? option.eraser_size : DEFAULT_ERASER_SIZE,
+        toolbar.text.size = (typeof option.text_size !== 'undefined') ? option.text_size : DEFAULT_TEXT_SIZE
 
-		if (!(this instanceof Whiteboard)) throw new TypeError("Cannot call a class as a function");
-		
+        if (!(this instanceof Whiteboard)) throw new TypeError("Cannot call a class as a function");
+        
         _canvas = canvas;
         _ctx    = canvas.getContext('2d');
         _socket = socket;
@@ -120,27 +113,32 @@ let Whiteboard = (function (window) {
 
         socket.on('gigaginie', function (msg) {
             const _msg = JSON.parse(msg)
-            // 여기서 라인, 지우개, 다 세팅해도 문제 없을까? 함수로 뺀다면 빼겟지?
-            console.log('a',_msg)
-            let thickness     = _msg.lineSize, 
-                color         = _msg.textColor || _msg.lineColor, 
-                eraser_size   = _msg.eraserSize, 
-                text_size     = _msg.textSize,
-                axisX         = _msg.axisX || 0,
-                axisY         = _msg.axisY || 0,
-                text_contents = _msg.contents || ' ' 
-
-                console.log(_ctx)
+            
+            let thickness, color, eraser_size, text_size, axisX, axisY, text_contents;
+            
+            let signalOp = _msg.signalOp;
+            let signalCheck = /start/gi;
+            
+            if ( signalCheck.test(signalOp) ) {
+                console.log('first')
+                toolbar.pen.thickness = _msg.lineSize;
+                toolbar.color = _msg.textColor || _msg.lineColor;
+                toolbar.eraser.size = _msg.eraserSize;
+                toolbar.text.size = _msg.textSize;
+            }
+            mouse.pos.x         = _msg.axisX
+            mouse.pos.y         = _msg.axisY
+            toolbar.text.contents = _msg.contents
             
             switch (_msg.signalOp) {
-                case 'DrawStart':   _ctx.lineWidth                = thickness;
-                                    _ctx.strokeStyle              = color;
+                case 'DrawStart':   _ctx.lineWidth                = toolbar.pen.thickness;
+                                    _ctx.strokeStyle              = toolbar.color;
                                     _ctx.globalCompositeOperation = 'source-over';
                                     _ctx.beginPath();
-                                    _ctx.moveTo(axisX * width, axisY * height);
+                                    _ctx.moveTo(mouse.pos.x * width, mouse.pos.y * height);
                                     break;
                 
-                case 'DrawMove':    _ctx.lineTo(axisX * width, axisY * height);
+                case 'DrawMove':    _ctx.lineTo(mouse.pos.x * width, mouse.pos.y * height);
                                     _ctx.stroke();
                                     break;
 
@@ -149,12 +147,12 @@ let Whiteboard = (function (window) {
                                     break;                
                 
                 case 'EraseStart':  _ctx.globalCompositeOperation = 'destination-out';
-                                    _ctx.fillStyle                = toolbar.eraser.color // #fffff지우개는 항상 하얀색 !
+                                    _ctx.fillStyle                = toolbar.eraser.color; // #fffff지우개는 항상 하얀색 !
                                     _ctx.beginPath();
-                                    _ctx.moveTo(axisX * width, axisY * height);
+                                    _ctx.moveTo(mouse.pos.x * width, mouse.pos.y * height);
                                     break;
 
-                case 'EraseMove':   _ctx.arc(axisX * width, axisY * height, eraser_size, 0, Math.PI * 2, false);
+                case 'EraseMove':   _ctx.arc(mouse.pos.x * width, mouse.pos.y * height, toolbar.eraser.size, 0, Math.PI * 2, false);
                                     _ctx.fill();
                                     break;
 
@@ -166,10 +164,10 @@ let Whiteboard = (function (window) {
 
                 case 'WriteText':   _ctx.textBaseline             = 'top';
                                     _ctx.textAlign                = 'left'; 
-                                    _ctx.font                     = `${text_size}px Arial`;
-                                    _ctx.fillStyle                = color
+                                    _ctx.font                     = `${toolbar.text.size}px Arial`;
+                                    _ctx.fillStyle                = toolbar.color
                                     _ctx.globalCompositeOperation = 'source-over' // 지우개 갔다 오면 지우개 속성으로 먹혀있다.......      
-                                    _ctx.fillText(_msg.contents, axisX * width, axisY * height);
+                                    _ctx.fillText(toolbar.text.contents, mouse.pos.x * width, mouse.pos.y * height);
                                     break;
             }
         })
