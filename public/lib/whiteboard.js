@@ -60,6 +60,11 @@ let Whiteboard = (function (window) {
     };
 
     function Whiteboard (canvas, socket, option) {
+        /**
+         * 객체 생성 시 3번째 인자로 option을 보내지 않았을 경우
+         */
+        if (!option) option = {};
+
         toolbar.type = (typeof option.type !== 'undefinde') ? option.type : 'pen'
         toolbar.color = (typeof option.color !== 'undefinde') ? option.color : DEFAULT_COLOR
         toolbar.pen.thickness = (typeof option.thickness !== 'undefinde') ? option.thickness : DEFAULT_THICKNESS
