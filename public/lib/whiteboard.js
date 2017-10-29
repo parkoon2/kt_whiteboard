@@ -48,7 +48,7 @@ let Whiteboard = (function (window) {
         color: null, 
         pen: { thickness: null },
         eraser: { color: null, size: null },
-        text: { isExist : false, contents: null, size: null }
+        textbf: { isExist : false, contents: null, size: null }
     }    
 
     /**
